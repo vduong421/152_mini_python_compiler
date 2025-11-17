@@ -1,7 +1,7 @@
-# Mini-Python Compiler – Description & Code Mapping
+# Mini-Python Compiler – Description & Code Mapping (We/Us version)
 
-This document connects each **presentation title/requirement** to the **exact code snippet** in `main.py` that supports it.  
-You can use this as notes when you build your slides.
+This document connects each **presentation title/requirement** to the **exact code snippet** in `main.py` that supports it.
+We can use this as notes when we build our slides.
 
 ---
 
@@ -9,8 +9,8 @@ You can use this as notes when you build your slides.
 
 **What this proves**
 
-- You are using **regular expressions** to define a **regular language** for your tokens.
-- You classify tokens into **keywords, identifiers, numbers, operators, punctuation, whitespace, comments**, etc.
+- We are using **regular expressions** to define a **regular language** for our tokens.
+- We classify tokens into **keywords, identifiers, numbers, operators, punctuation, whitespace, comments**, etc.
 
 **Key code**
 
@@ -23,7 +23,7 @@ TOKEN_SPEC = [
     ("EQ",       r"=="),
     ("NE",       r"!="),
     ("LE",       r"<="),
-    ("GE",       r">="),
+    ("GE",       r"=>"),
     ("LT",       r"<"),
     ("GT",       r">"),
     ("PLUS",     r"\+"),
@@ -100,8 +100,8 @@ def lex(source: str) -> List[Token]:
 
 **What this proves**
 
-- You explicitly define a **Context-Free Grammar (CFG)** for your mini-Python language.
-- You can use this on a slide to show the **CFL** you are recognizing.
+- We explicitly define a **Context-Free Grammar (CFG)** for our mini-Python language.
+- We can use this on a slide to show the **context-free language (CFL)** that our compiler recognizes.
 
 **Key code**
 
@@ -137,7 +137,7 @@ Primary     -> NUMBER
 """
 ```
 
-You also **implement** this grammar in code using recursive descent:
+We also implement this grammar in code using recursive descent:
 
 ```python
 class Parser:
@@ -172,8 +172,8 @@ class Parser:
 
 **What this proves**
 
-- You can convert **parts of your grammar** into **CNF** and **GNF** forms.
-- Even if not fully parsed by code, this **meets the theory requirement**.
+- We can convert **parts of our grammar** into **CNF** and **GNF** forms.
+- Even if this is not used in the running compiler, it satisfies the **theory requirement**.
 
 **Key code**
 
@@ -206,7 +206,7 @@ ExprTail -> PLUS Expr
 """
 ```
 
-These strings are printed in `show_theory()` for your slides.
+These strings are printed in `show_theory()` for our slides.
 
 ---
 
@@ -214,8 +214,8 @@ These strings are printed in `show_theory()` for your slides.
 
 **What this proves**
 
-- You understand how your **regular expressions** correspond to a **DFA**.
-- You can draw this DFA on a slide using this description.
+- We connect our **regular expressions** to a **Deterministic Finite Automaton (DFA)** description.
+- We can draw this DFA on a slide based on this text.
 
 **Key code**
 
@@ -251,8 +251,8 @@ Printed by `show_theory()`.
 
 **What this proves**
 
-- You build a real **AST** and show internal compiler structure.
-- You can screenshot AST output for your slides.
+- We build a real **Abstract Syntax Tree (AST)** and can show the internal structure of our compiler.
+- We can screenshot AST output for our slides.
 
 **AST node definitions**
 
@@ -340,8 +340,8 @@ def format_ast(node: AST, indent: int = 0) -> str:
 
 **What this proves**
 
-- You have grammar rules and parser logic for **control flow**: `if`, `else`, `while`.
-- You can show parse trees for these constructs.
+- We have grammar rules and parser logic for **control flow**: `if`, `else`, `while`.
+- We can show parse trees for these constructs in the slides.
 
 **Key code**
 
@@ -392,8 +392,8 @@ def parse_block(self) -> List[AST]:
 
 **What this proves**
 
-- You convert AST into a **low-level target language** (your custom stack assembly).
-- This is your **code generation** phase.
+- We convert the AST into a **low-level target language** (our custom stack-based assembly).
+- This is our **code generation** phase.
 
 **Key code**
 
@@ -488,8 +488,8 @@ def generate_program(prog: Program) -> List[Instr]:
 
 **What this proves**
 
-- Your compiler not only generates code but also **runs** it with a small VM.
-- You show the **result of compilation** for **three test programs**.
+- Our compiler not only generates code but also **runs** it with a small virtual machine.
+- We show the **result of compilation** for **three test programs**.
 
 **Virtual Machine / execution engine**
 
@@ -551,18 +551,21 @@ def run_program(code: List[Instr]) -> Dict[str, Any]:
 **Demo programs**
 
 ```python
-DEMO1 = """x = 1 + 2 * 3
+DEMO1 = """\
+x = 1 + 2 * 3
 y = x + 4
 print(y)
 """
 
-DEMO2 = """x = 0
+DEMO2 = """\
+x = 0
 while x < 5:
     x = x + 1
 print(x)
 """
 
-DEMO3 = """x = 10
+DEMO3 = """\
+x = 10
 if x > 5:
     print(x)
 else:
@@ -576,13 +579,11 @@ def compile_and_run(source: str, name: str = "demo"):
     print(f"Source: {name}")
     print("-" * 60)
     print(source.rstrip())
-    print("
-[1] Tokens")
+    print("\n[1] Tokens")
     toks = lex(source)
     print(format_tokens(toks))
 
-    print("
-[2] Parse / AST")
+    print("\n[2] Parse / AST")
     parser = Parser(toks)
     prog = parser.parse()
     if parser.errors:
@@ -593,20 +594,18 @@ def compile_and_run(source: str, name: str = "demo"):
         return
     print(format_ast(prog))
 
-    print("
-[3] Generated Assembly")
+    print("\n[3] Generated Assembly")
     code = generate_program(prog)
     print(format_code(code))
 
-    print("
-[4] VM Execution Output & Final Variables")
+    print("\n[4] VM Execution Output & Final Variables")
     env = run_program(code)
     print("Final env:", env)
     print("=" * 60)
     print()
 ```
 
-In `__main__`, you call:
+In `__main__`, we call:
 
 ```python
 compile_and_run(DEMO1, "Demo 1: Arithmetic & Print")
@@ -620,7 +619,7 @@ compile_and_run(DEMO3, "Demo 3: If/Else")
 
 **What this proves**
 
-- Your compiler **detects syntax errors**, reports **line numbers**, and **stops code generation** when errors exist.
+- Our compiler **detects syntax errors**, reports **line numbers**, and **stops code generation** when errors exist.
 
 **Key code (error tracking in Parser)**
 
@@ -646,7 +645,8 @@ class Parser:
 Error demo program:
 
 ```python
-ERROR_DEMO = """x = 1 +
+ERROR_DEMO = """\
+x = 1 +
 if x > :
     print(x)
 """
@@ -675,8 +675,8 @@ if parser.errors:
 
 **What this proves**
 
-- You have a clear **memory model** (environment / symbol table).
-- You can discuss **dataflow** (values flowing from literals → stack → variables).
+- We have a clear **memory model** (environment / symbol table).
+- We can discuss **dataflow** (values flowing from literals → stack → variables).
 
 **Key code (environment & stack)**
 
@@ -696,10 +696,10 @@ elif op == "LOAD_VAR":
     stack.append(env.get(args[0], 0))
 ```
 
-You can explain:
+We can explain:
 
-- `env` is your **symbol table / memory** for variables.  
-- `stack` is where **expression evaluation** happens (dataflow).  
+- `env` is our **symbol table / memory** for variables.
+- `stack` is where **expression evaluation** happens (dataflow).
 
 ---
 
@@ -707,7 +707,7 @@ You can explain:
 
 **How to run (terminal command)**
 
-You can show this on the slide:
+We can show this on the slide:
 
 ```bash
 python main.py
@@ -725,14 +725,13 @@ if __name__ == "__main__":
     compile_and_run(ERROR_DEMO, "Error Demo: Syntax Errors")
 ```
 
-**Limitations** (you describe in bullets on slide, not in code):
+**Limitations** (we describe in bullets on a slide, not in code):
 
-- Only a **subset of Python** (assignments, if/else, while, print, ints).  
-- No functions, lists, dictionaries, or advanced types.  
-- Assembly is a simple **custom stack machine**, not real CPU ISA.  
+- Only a **subset of Python** (assignments, if/else, while, print, integers).
+- No functions, lists, dictionaries, or advanced types.
+- Assembly is a simple **custom stack machine**, not a real CPU ISA.
 - No advanced optimizations (only straightforward code generation).
 
 ---
 
-Use this `description.md` as your **cheat sheet**:  
-Each section = one or more slides, and each code block = a snippet you can screenshot or paste into your presentation.
+
