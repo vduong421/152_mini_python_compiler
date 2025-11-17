@@ -482,23 +482,36 @@ def generate_program(prog: Program) -> List[Instr]:
 # -----------------------------
 
 def run_program(code: List[Instr]) -> Dict[str, Any]:
+    # Resolve labels
     label_to_pc: Dict[str, int] = {}
     for idx, instr in enumerate(code):
         if instr.op == "LABEL":
             label_name = instr.args[0]
             label_to_pc[label_name] = idx
 
-    patched_code: List[Instr] = []
-    for instr in code:
+    # Create a version of code without labels, and fix jump targets
+    flat_code: List[Instr] = []
+    old_to_new_pc: Dict[int, int] = {}
+    for idx, instr in enumerate(code):
+        if instr.op == "LABEL":
+            continue
+        new_idx = len(flat_code)
+        old_to_new_pc[idx] = new_idx
+        flat_code.append(instr)
+
+    # Adjust label positions to new PCs
+    label_pc_resolved: Dict[str, int] = {
+        name: old_to_new_pc[pc] for name, pc in label_to_pc.items() if pc in old_to_new_pc
+    }
+
+    # Replace label names in jump instructions with numeric PCs
+    for i, instr in enumerate(flat_code):
         if instr.op in {"JUMP", "JUMP_IF_FALSE"}:
             label = instr.args[0]
-            target_pc = label_to_pc[label]
-            patched_code.append(Instr(instr.op, (target_pc,)))
-        else:
-            patched_code.append(instr)
+            target_pc = label_pc_resolved[label]
+            flat_code[i] = Instr(instr.op, (target_pc,))
 
-    code = patched_code
-
+    # Execute
     stack: List[Any] = []
     env: Dict[str, Any] = {}
     pc = 0
@@ -508,8 +521,8 @@ def run_program(code: List[Instr]) -> Dict[str, Any]:
             raise RuntimeError("Stack underflow")
         return stack.pop()
 
-    while pc < len(code):
-        instr = code[pc]
+    while pc < len(flat_code):
+        instr = flat_code[pc]
         op = instr.op
         args = instr.args
 
@@ -574,9 +587,6 @@ def run_program(code: List[Instr]) -> Dict[str, Any]:
             if not cond:
                 pc = args[0]
                 continue
-        elif op == "LABEL":
-            pc += 1
-            continue
         else:
             raise RuntimeError(f"Unknown instruction {op}")
 
