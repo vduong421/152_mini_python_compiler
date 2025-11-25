@@ -15,7 +15,7 @@ Features:
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Any, Dict, Tuple
+from typing import List, Optional, Any, Dict, Tuple, Set
 
 # -----------------------------
 # 1. TOKENS & LEXER  (Lexical analysis, regex, token classification)
@@ -655,6 +655,154 @@ def format_code(code: List[Instr]) -> str:
         lines.append(f"{i:03}: {instr.op} {', '.join(map(str, instr.args))}")
     return "\n".join(lines)
 
+
+def generate_x86(prog: Program) -> List[str]:
+    lines: List[str] = []
+    label_counter = 0
+
+    def new_label(prefix: str = ".L") -> str:
+        nonlocal label_counter
+        label = f"{prefix}{label_counter}"
+        label_counter += 1
+        return label
+
+    vars_set: Set[str] = set()
+
+    def visit(node: AST):
+        if isinstance(node, Assign):
+            vars_set.add(node.name)
+            visit(node.expr)
+        elif isinstance(node, Print):
+            visit(node.expr)
+        elif isinstance(node, If):
+            visit(node.cond)
+            for s in node.then_body:
+                visit(s)
+            if node.else_body:
+                for s in node.else_body:
+                    visit(s)
+        elif isinstance(node, While):
+            visit(node.cond)
+            for s in node.body:
+                visit(s)
+        elif isinstance(node, BinOp):
+            visit(node.left)
+            visit(node.right)
+        elif isinstance(node, UnaryOp):
+            visit(node.operand)
+
+    for s in prog.body:
+        visit(s)
+
+    lines.append("section .data")
+    if vars_set:
+        for name in sorted(vars_set):
+            lines.append(f"    {name} dd 0")
+    else:
+        lines.append("    ; no variables")
+    lines.append("")
+    lines.append("section .text")
+    lines.append("    global _start")
+    lines.append("_start:")
+
+    def gen_expr(node: AST):
+        if isinstance(node, Number):
+            lines.append(f"    mov eax, {node.value}")
+        elif isinstance(node, Var):
+            lines.append(f"    mov eax, dword [{node.name}]")
+        elif isinstance(node, UnaryOp):
+            gen_expr(node.operand)
+            if node.op == "MINUS":
+                lines.append("    neg eax")
+            elif node.op == "PLUS":
+                pass
+        elif isinstance(node, BinOp):
+            gen_expr(node.left)
+            lines.append("    push eax")
+            gen_expr(node.right)
+            lines.append("    pop ebx")
+            if node.op == "PLUS":
+                lines.append("    add eax, ebx")
+            elif node.op == "MINUS":
+                lines.append("    mov ecx, eax")
+                lines.append("    mov eax, ebx")
+                lines.append("    sub eax, ecx")
+            elif node.op == "MUL":
+                lines.append("    imul eax, ebx")
+            elif node.op == "DIV":
+                lines.append("    mov edx, 0")
+                lines.append("    mov ecx, eax")
+                lines.append("    mov eax, ebx")
+                lines.append("    idiv ecx")
+            elif node.op in {"LT", "LE", "GT", "GE", "EQ", "NE"}:
+                lines.append("    cmp ebx, eax")
+                if node.op == "LT":
+                    lines.append("    setl al")
+                elif node.op == "LE":
+                    lines.append("    setle al")
+                elif node.op == "GT":
+                    lines.append("    setg al")
+                elif node.op == "GE":
+                    lines.append("    setge al")
+                elif node.op == "EQ":
+                    lines.append("    sete al")
+                elif node.op == "NE":
+                    lines.append("    setne al")
+                lines.append("    movzx eax, al")
+            else:
+                lines.append("    ; unsupported binary op")
+        else:
+            lines.append("    ; unsupported expr node")
+
+    def gen_stmt(node: AST):
+        if isinstance(node, Assign):
+            gen_expr(node.expr)
+            lines.append(f"    mov dword [{node.name}], eax")
+        elif isinstance(node, Print):
+            gen_expr(node.expr)
+            lines.append("    ; print value in eax (pseudo-call)")
+            lines.append("    ; push eax")
+            lines.append("    ; call print_int")
+            lines.append("    ; add esp, 4")
+        elif isinstance(node, If):
+            else_label = new_label(".Lelse")
+            end_label = new_label(".Lend")
+            gen_expr(node.cond)
+            lines.append("    cmp eax, 0")
+            lines.append(f"    je {else_label}")
+            for s in node.then_body:
+                gen_stmt(s)
+            lines.append(f"    jmp {end_label}")
+            lines.append(f"{else_label}:")
+            if node.else_body:
+                for s in node.else_body:
+                    gen_stmt(s)
+            lines.append(f"{end_label}:")
+        elif isinstance(node, While):
+            start_label = new_label(".Lloop")
+            end_label = new_label(".Lend")
+            lines.append(f"{start_label}:")
+            gen_expr(node.cond)
+            lines.append("    cmp eax, 0")
+            lines.append(f"    je {end_label}")
+            for s in node.body:
+                gen_stmt(s)
+            lines.append(f"    jmp {start_label}")
+            lines.append(f"{end_label}:")
+        else:
+            lines.append("    ; unsupported stmt")
+
+    for s in prog.body:
+        gen_stmt(s)
+
+    lines.append("")
+    lines.append("    ; exit(0)")
+    lines.append("    mov eax, 1")
+    lines.append("    mov ebx, 0")
+    lines.append("    int 0x80")
+
+    return lines
+
 # -----------------------------
 # 7. THEORY STRINGS (Regex, CFG, CNF, GNF, DFA) – for theory slides
 # -----------------------------
@@ -796,12 +944,13 @@ def compile_and_run(source: str, name: str = "demo"):
         return
     print(format_ast(prog))
 
-    print("\n[3] Generated Assembly")
-    code = generate_program(prog)
-    print(format_code(code))
+    print("\n[3] Generated Assembly (x86)")
+    asm_lines = generate_x86(prog)
+    print("\n".join(asm_lines))
 
     print("\n[4] VM Execution Output & Final Variables")
-    env = run_program(code)
+    vm_code = generate_program(prog)
+    env = run_program(vm_code)
     print("Final env:", env)
     print("=" * 60)
     print()
