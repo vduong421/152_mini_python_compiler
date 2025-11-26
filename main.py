@@ -1,8 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
-Mini-Python Subset Compiler -> Custom Stack Assembly
+Mini Python Subset Compiler 
 
 Features:
 - Lexical analysis (tokens + regex)
@@ -15,16 +12,14 @@ Features:
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Any, Dict, Tuple, Set
+from typing import List, Optional, Any, Dict, Tuple, Set    
 
-# -----------------------------
-# 1. TOKENS & LEXER  (Lexical analysis, regex, token classification)
-# -----------------------------
+# 1. LEXER  (Lexical analysis: keyword, regular expression, token classification, and indentaion handling)
 
 KEYWORDS = {"if", "else", "while", "print"}
 
 TOKEN_SPEC = [
-    ("NUMBER",   r"\d+"),
+    ("NUMBER",   r"\d+"),   
     ("ID",       r"[A-Za-z_][A-Za-z0-9_]*"),
     ("EQ",       r"=="),
     ("NE",       r"!="),
@@ -45,8 +40,8 @@ TOKEN_SPEC = [
     ("MISMATCH", r"."),
 ]
 
+# combine token specification into a master regular expression, turning into sequence of named groups to recognize tokens efficiently
 MASTER_RE = re.compile("|".join(f"(?P<{name}>{pattern})" for name, pattern in TOKEN_SPEC))
-
 
 @dataclass
 class Token:
@@ -55,49 +50,44 @@ class Token:
     line: int
     column: int
 
-
 class LexerError(Exception):
-    pass
-
+    pass    # to continue lexing on error
 
 def lex(source: str) -> List[Token]:
     tokens: List[Token] = []
-    indent_stack = [0]
+    indent_stack = [0]   # to track indentation levels
 
-    lines = source.splitlines()
+    lines = source.splitlines()     # split source into lines for processing 
     for lineno, raw_line in enumerate(lines, start=1):
-        # Handle indentation (count spaces at start)
-        stripped = raw_line.lstrip(" ")
+        # handle indentation (count spaces at start), remove leading spaces for indentation check
+        stripped = raw_line.lstrip(" ")    
         if stripped == "" or stripped.startswith("#"):
-            # Blank or comment-only line -> emit NEWLINE only, no indent change
+            # emit NEWLINE for empty or comment lines
             tokens.append(Token("NEWLINE", "\\n", lineno, 0))
             continue
 
-        indent = len(raw_line) - len(stripped)
-        if indent % 4 != 0:
-            # non-multiple of 4 indentation: you could log an indentation warning here
-            pass
-
-        if indent > indent_stack[-1]:
+        indent = len(raw_line) - len(stripped)      # count leading spaces of the line
+        if indent > indent_stack[-1]:       # indent increase because new block started compared to previous line
             indent_stack.append(indent)
             tokens.append(Token("INDENT", indent, lineno, 0))
         else:
             while indent < indent_stack[-1]:
-                indent_stack.pop()
+                indent_stack.pop()      # dedent to previous level when indent decreases
                 tokens.append(Token("DEDENT", indent, lineno, 0))
             if indent != indent_stack[-1]:
-                # inconsistent indentation - treat as error token but continue
+                # inconsistent indentation, so treated as error token but continue
                 tokens.append(Token("INDENT_ERROR", indent, lineno, 0))
 
         # Tokenize the rest of the line
-        pos = len(raw_line) - len(stripped)
+        pos = len(raw_line) - len(stripped)    #start scanning after checked indentation
         while pos < len(raw_line):
-            mo = MASTER_RE.match(raw_line, pos)
+            # declare match object for regex matching, startingat current position
+            mo = MASTER_RE.match(raw_line, pos)     
             if not mo:
                 raise LexerError(f"Illegal character at line {lineno}: {raw_line[pos]!r}")
-            kind = mo.lastgroup
-            value = mo.group()
-            col = mo.start() + 1
+            kind = mo.lastgroup     # which named pattern matched
+            value = mo.group()      # retrieved matched text
+            col = mo.start() + 1    # column number starting from 1, to report token position 
             if kind == "NUMBER":
                 tokens.append(Token("NUMBER", int(value), lineno, col))
             elif kind == "ID":
@@ -110,26 +100,26 @@ def lex(source: str) -> List[Token]:
                           "ASSIGN", "LPAREN", "RPAREN", "COLON"}:
                 tokens.append(Token(kind, value, lineno, col))
             elif kind == "SKIP":
-                pass
+                pass   
             elif kind == "COMMENT":
-                # Ignore rest of line
                 break
             elif kind == "MISMATCH":
                 raise LexerError(f"Unexpected character {value!r} at line {lineno}, col {col}")
-            pos = mo.end()
+            pos = mo.end()      # move to the end of the matched token
+        # add new line at the end of each line
         tokens.append(Token("NEWLINE", "\\n", lineno, len(raw_line) + 1))
 
-    # Close any remaining indents
-    lineno = len(lines) + 1
-    while len(indent_stack) > 1:
-        indent_stack.pop()
+    # close any remaining indents
+    lineno = len(lines) + 1     # after last line
+    while len(indent_stack) > 1:    
+        indent_stack.pop()      # pop remaining indents until back to base level
         tokens.append(Token("DEDENT", 0, lineno, 0))
-    tokens.append(Token("EOF", "", lineno, 0))
+    tokens.append(Token("EOF", "", lineno, 0))      # end of file token to mark end of input
     return tokens
 
-# -----------------------------
+
+
 # 2. AST NODES (Parse tree / AST representation)
-# -----------------------------
 
 class AST:  # base class
     pass
@@ -979,7 +969,7 @@ def show_theory():
     print("=" * 60)
 
 if __name__ == "__main__":
-    print("Mini-Python Subset Compiler Demo\n")
+    print("Mini Python Compiler\n")
     show_theory()
     compile_and_run(DEMO1, "Demo 1: Arithmetic & Print")
     compile_and_run(DEMO2, "Demo 2: While Loop")
