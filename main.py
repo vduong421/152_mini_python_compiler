@@ -127,20 +127,17 @@ class AST:  # base class
 
 @dataclass
 class Program(AST):
-    body: List[AST]
-
+    body: List[AST]     # list of statements like assignments, prints, if, or while
 
 @dataclass
 class Number(AST):
     value: int
     line: int
 
-
 @dataclass
 class Var(AST):
     name: str
     line: int
-
 
 @dataclass
 class BinOp(AST):
@@ -149,13 +146,11 @@ class BinOp(AST):
     right: AST
     line: int
 
-
 @dataclass
 class UnaryOp(AST):
     op: str
     operand: AST
     line: int
-
 
 @dataclass
 class Assign(AST):
@@ -163,12 +158,10 @@ class Assign(AST):
     expr: AST
     line: int
 
-
 @dataclass
 class Print(AST):
     expr: AST
     line: int
-
 
 @dataclass
 class If(AST):
@@ -177,16 +170,15 @@ class If(AST):
     else_body: Optional[List[AST]]
     line: int
 
-
 @dataclass
 class While(AST):
     cond: AST
     body: List[AST]
     line: int
 
-# -----------------------------
+
+
 # 3. PARSER (CFG, left/right derivation, syntax errors, AST build)
-# -----------------------------
 
 class ParserError(Exception):
     pass
