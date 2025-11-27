@@ -124,7 +124,6 @@ def lex(source: str) -> List[Token]:
 class AST:  # base class
     pass
 
-
 @dataclass
 class Program(AST):
     body: List[AST]     # list of statements like assignments, prints, if, or while
@@ -180,13 +179,12 @@ class While(AST):
 
 # 3. PARSER (CFG, left/right derivation, syntax errors, AST build)
 
-class ParserError(Exception):
+class ParserError(Exception):       # to continue parsing on error
     pass
-
 
 class Parser:
     def __init__(self, tokens: List[Token]):
-        self.tokens = tokens
+        self.tokens = tokens            # list of tokens from lexer
         self.pos = 0
         self.errors: List[str] = []
 
@@ -200,28 +198,32 @@ class Parser:
 
     def match(self, *types) -> Optional[Token]:
         if self.current().type in types:
-            return self.advance()
+            # consume if type (Token object) of current token matches expected types
+            return self.advance()       
         return None
 
     def expect(self, *types) -> Token:
         tok = self.current()
         if tok.type in types:
-            return self.advance()
+            return self.advance()       # consume, return token if matches expected types, and continue parsing
+        # syntax error handling: report error but continue parsing 
         msg = f"Expected {types}, got {tok.type} at line {tok.line}"
         self.errors.append(msg)
-        # Attempt simple recovery: skip until NEWLINE or DEDENT or EOF
+        # attempt simple recovery: skip until NEWLINE or DEDENT or EOF
         while self.current().type not in {"NEWLINE", "DEDENT", "EOF"}:
-            self.advance()
+            self.advance()     
         return tok  # return offending token so parsing can continue
 
-    # --------- Entry points ----------
+
+    # Entry points for parsing
 
     def parse(self) -> Program:
         body = []
+        # parsing until EOF
         while self.current().type != "EOF":
             if self.current().type == "NEWLINE":
                 self.advance()
-                continue
+                continue        
             stmt = self.parse_statement()
             if stmt is not None:
                 body.append(stmt)
@@ -236,7 +238,7 @@ class Parser:
         elif tok.type == "PRINT":
             return self.parse_print()
         elif tok.type == "ID":
-            # assignment?
+            # to see if the next token is ASSIGN 
             if self.tokens[self.pos + 1].type == "ASSIGN":
                 return self.parse_assign()
             else:
@@ -255,7 +257,7 @@ class Parser:
             return None
 
     def parse_block(self) -> List[AST]:
-        # we expect an INDENT followed by statements, ending with DEDENT
+        # expect an INDENT followed by statements, ending with DEDENT
         self.expect("INDENT")
         stmts: List[AST] = []
         while self.current().type not in {"DEDENT", "EOF"}:
@@ -281,7 +283,7 @@ class Parser:
             self.expect("COLON")
             self.expect("NEWLINE")
             else_body = self.parse_block()
-        return If(cond, then_body, else_body, tok_if.line)
+        return If(cond, then_body, else_body, tok_if.line)      
 
     def parse_while(self) -> While:
         tok_w = self.expect("WHILE")
@@ -306,7 +308,8 @@ class Parser:
         self.match("NEWLINE")
         return Print(expr, tok_p.line)
 
-    # --------- Expressions (recursive descent) ----------
+
+    #Expressions 
 
     def parse_expression(self) -> AST:
         return self.parse_equality()
@@ -314,7 +317,7 @@ class Parser:
     def parse_equality(self) -> AST:
         node = self.parse_comparison()
         while self.current().type in {"EQ", "NE"}:
-            op_tok = self.advance()
+            op_tok = self.advance()     
             right = self.parse_comparison()
             node = BinOp(op_tok.type, node, right, op_tok.line)
         return node
@@ -369,9 +372,9 @@ class Parser:
             self.advance()
             return Number(0, tok.line)
 
-# -----------------------------
-# 4. CODE GENERATION (Custom assembly)
-# -----------------------------
+
+
+# 4. CODE GENERATION 
 
 @dataclass
 class Instr:
