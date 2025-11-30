@@ -81,7 +81,7 @@ def lex(source: str) -> List[Token]:
         # Tokenize the rest of the line
         pos = len(raw_line) - len(stripped)    #start scanning after checked indentation
         while pos < len(raw_line):
-            # declare match object for regex matching, startingat current position
+            # declare match object for regex matching, starting at current position
             mo = MASTER_RE.match(raw_line, pos)     
             if not mo:
                 raise LexerError(f"Illegal character at line {lineno}: {raw_line[pos]!r}")
@@ -309,7 +309,7 @@ class Parser:
         return Print(expr, tok_p.line)
 
 
-    #Expressions 
+    # Expressions following left associative binary operations and precedence
 
     def parse_expression(self) -> AST:
         return self.parse_equality()
@@ -462,9 +462,9 @@ def generate_program(prog: Program) -> List[Instr]:
         gen_stmt(stmt)
     return code
 
-# -----------------------------
+
+
 # 5. SIMPLE VM TO RUN ASSEMBLY (Result of compilation)
-# -----------------------------
 
 def run_program(code: List[Instr]) -> Dict[str, Any]:
     label_to_pc: Dict[str, int] = {}
@@ -569,9 +569,9 @@ def run_program(code: List[Instr]) -> Dict[str, Any]:
 
     return env
 
-# -----------------------------
-# 6. PRETTY-PRINT HELPERS (For slides: tokens, AST, code)
-# -----------------------------
+
+
+# 6. HELPERS (For slides: tokens, AST, code)
 
 def format_tokens(tokens: List[Token]) -> str:
     parts = []
@@ -788,9 +788,9 @@ def generate_x86(prog: Program) -> List[str]:
 
     return lines
 
-# -----------------------------
-# 7. THEORY STRINGS (Regex, CFG, CNF, GNF, DFA) – for theory slides
-# -----------------------------
+
+
+# 7. THEORY STRINGS (Regex, CFG, CNF, GNF, DFA) 
 
 REGEX_SPEC_TEXT = r"""
 Identifier (ID):   [A-Za-z_][A-Za-z0-9_]*
@@ -878,9 +878,9 @@ From q_num:
 q_err is a trap state.
 """
 
-# -----------------------------
+
+
 # 8. DEMO PROGRAMS (3 good + 1 error case)
-# -----------------------------
 
 DEMO1 = """\
 x = 1 + 2 * 3
@@ -896,7 +896,7 @@ print(x)
 """
 
 DEMO3 = """\
-x = 10
+x_b = 10
 if x > 5:
     print(x)
 else:
@@ -965,7 +965,7 @@ def show_theory():
 
 if __name__ == "__main__":
     print("Mini Python Compiler\n")
-    show_theory()
+    #show_theory()
     compile_and_run(DEMO1, "Demo 1: Arithmetic & Print")
     compile_and_run(DEMO2, "Demo 2: While Loop")
     compile_and_run(DEMO3, "Demo 3: If/Else")
