@@ -126,8 +126,8 @@ class AST:  # base class
 
 @dataclass
 class Program(AST):
-    body: List[AST]     # list of statements like assignments, prints, if, or while
-
+    body: List[AST]    
+    
 @dataclass
 class Number(AST):
     value: int
