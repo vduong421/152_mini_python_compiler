@@ -641,153 +641,142 @@ def format_code(code: List[Instr]) -> str:
     return "\n".join(lines)
 
 
-def generate_x86(prog: Program) -> List[str]:
-    lines: List[str] = []
+def generate_x86(prog) -> str:      #x86 32bit MASM
+    lines = []
     label_counter = 0
 
-    def new_label(prefix: str = ".L") -> str:
+    def new_label(prefix="L"):
         nonlocal label_counter
-        label = f"{prefix}{label_counter}"
         label_counter += 1
-        return label
+        return f"{prefix}{label_counter}"
 
-    vars_set: Set[str] = set()
+    vars_set = set()
 
-    def visit(node: AST):
+    #collect all variables
+    def collect(node):
         if isinstance(node, Assign):
             vars_set.add(node.name)
-            visit(node.expr)
+            collect(node.expr)
         elif isinstance(node, Print):
-            visit(node.expr)
-        elif isinstance(node, If):
-            visit(node.cond)
-            for s in node.then_body:
-                visit(s)
-            if node.else_body:
-                for s in node.else_body:
-                    visit(s)
-        elif isinstance(node, While):
-            visit(node.cond)
-            for s in node.body:
-                visit(s)
+            collect(node.expr)
         elif isinstance(node, BinOp):
-            visit(node.left)
-            visit(node.right)
+            collect(node.left)
+            collect(node.right)
         elif isinstance(node, UnaryOp):
-            visit(node.operand)
+            collect(node.operand)
+        elif isinstance(node, If):
+            collect(node.cond)
+            for s in node.then_body:
+                collect(s)
+            if hasattr(node, "else_body") and node.else_body:
+                for s in node.else_body:
+                    collect(s)
+        elif isinstance(node, While):
+            collect(node.cond)
+            for s in node.body:
+                collect(s)
 
-    for s in prog.body:
-        visit(s)
+    for stmt in prog.body:
+        collect(stmt)
 
-    lines.append("section .data")
-    if vars_set:
-        for name in sorted(vars_set):
-            lines.append(f"    {name} dd 0")
-    else:
-        lines.append("    ; no variables")
-    lines.append("")
-    lines.append("section .text")
-    lines.append("    global _start")
-    lines.append("_start:")
+    # MASM 32bit header 
+    lines.extend([
+        ".386",
+        ".model flat, stdcall",
+        "option casemap:none",
+        "",
+        "includelib msvcrt.lib",
+        "includelib kernel32.lib",
+        "",
+        "printf PROTO C :DWORD,:VARARG",
+        "",
+        ".data"
+    ])
 
-    def gen_expr(node: AST):
+    # Variables
+    for v in sorted(vars_set):
+        lines.append(f"    {v}  dd 0")
+    lines.append('    fmt  db "%d", 13, 10, 0')  # %d for 32bit int
+
+    # Code section
+    lines.extend([
+        "",
+        ".code",
+        "start:"
+    ])
+
+    # expression generation (uses EAX/EBX) 
+    def gen_expr(node):
         if isinstance(node, Number):
-            lines.append(f"    mov eax, {node.value}")
+            lines.append(f"    mov     eax, {node.value}")
         elif isinstance(node, Var):
-            lines.append(f"    mov eax, dword [{node.name}]")
-        elif isinstance(node, UnaryOp):
+            lines.append(f"    mov     eax, {node.name}")
+        elif isinstance(node, UnaryOp) and node.op == "MINUS":
             gen_expr(node.operand)
-            if node.op == "MINUS":
-                lines.append("    neg eax")
-            elif node.op == "PLUS":
-                pass
+            lines.append("    neg     eax")
         elif isinstance(node, BinOp):
             gen_expr(node.left)
-            lines.append("    push eax")
+            lines.append("    push    eax")
             gen_expr(node.right)
-            lines.append("    pop ebx")
+            lines.append("    mov     ebx, eax")
+            lines.append("    pop     eax")
             if node.op == "PLUS":
-                lines.append("    add eax, ebx")
+                lines.append("    add     eax, ebx")
             elif node.op == "MINUS":
-                lines.append("    mov ecx, eax")
-                lines.append("    mov eax, ebx")
-                lines.append("    sub eax, ecx")
+                lines.append("    sub     eax, ebx")
             elif node.op == "MUL":
-                lines.append("    imul eax, ebx")
+                lines.append("    imul    eax, ebx")
             elif node.op == "DIV":
-                lines.append("    mov edx, 0")
-                lines.append("    mov ecx, eax")
-                lines.append("    mov eax, ebx")
-                lines.append("    idiv ecx")
-            elif node.op in {"LT", "LE", "GT", "GE", "EQ", "NE"}:
-                lines.append("    cmp ebx, eax")
-                if node.op == "LT":
-                    lines.append("    setl al")
-                elif node.op == "LE":
-                    lines.append("    setle al")
-                elif node.op == "GT":
-                    lines.append("    setg al")
-                elif node.op == "GE":
-                    lines.append("    setge al")
-                elif node.op == "EQ":
-                    lines.append("    sete al")
-                elif node.op == "NE":
-                    lines.append("    setne al")
-                lines.append("    movzx eax, al")
-            else:
-                lines.append("    ; unsupported binary op")
-        else:
-            lines.append("    ; unsupported expr node")
+                lines.append("    cdq")
+                lines.append("    idiv    ebx")
 
-    def gen_stmt(node: AST):
+    #statement generation 
+    def gen_stmt(node):
         if isinstance(node, Assign):
             gen_expr(node.expr)
-            lines.append(f"    mov dword [{node.name}], eax")
+            lines.append(f"    mov     {node.name}, eax")
         elif isinstance(node, Print):
             gen_expr(node.expr)
-            lines.append("    ; print value in eax (pseudo-call)")
-            lines.append("    ; push eax")
-            lines.append("    ; call print_int")
-            lines.append("    ; add esp, 4")
+            lines.append("    invoke  printf, offset fmt, eax")
         elif isinstance(node, If):
-            else_label = new_label(".Lelse")
-            end_label = new_label(".Lend")
+            else_label = new_label("else")
+            end_label = new_label("end")
             gen_expr(node.cond)
-            lines.append("    cmp eax, 0")
-            lines.append(f"    je {else_label}")
+            lines.append("    test    eax, eax")
+            lines.append(f"    jz      {else_label}")
             for s in node.then_body:
                 gen_stmt(s)
-            lines.append(f"    jmp {end_label}")
+            lines.append(f"    jmp     {end_label}")
             lines.append(f"{else_label}:")
-            if node.else_body:
+            if hasattr(node, "else_body") and node.else_body:
                 for s in node.else_body:
                     gen_stmt(s)
             lines.append(f"{end_label}:")
         elif isinstance(node, While):
-            start_label = new_label(".Lloop")
-            end_label = new_label(".Lend")
+            start_label = new_label("loop")
+            end_label = new_label("loopend")
             lines.append(f"{start_label}:")
             gen_expr(node.cond)
-            lines.append("    cmp eax, 0")
-            lines.append(f"    je {end_label}")
+            lines.append("    test    eax, eax")
+            lines.append(f"    jz      {end_label}")
             for s in node.body:
                 gen_stmt(s)
-            lines.append(f"    jmp {start_label}")
+            lines.append(f"    jmp     {start_label}")
             lines.append(f"{end_label}:")
-        else:
-            lines.append("    ; unsupported stmt")
 
-    for s in prog.body:
-        gen_stmt(s)
+    # generate all statements
+    for stmt in prog.body:
+        gen_stmt(stmt)
 
-    lines.append("")
-    lines.append("    ; exit(0)")
-    lines.append("    mov eax, 1")
-    lines.append("    mov ebx, 0")
-    lines.append("    int 0x80")
+    # exit program
+    lines.extend([
+        "    push    0",
+        "    call    ExitProcess",
+        "",
+        "end start"
+    ])
 
     return lines
-
 
 
 # 7. THEORY STRINGS (Regex, CFG, CNF, GNF, DFA) 
@@ -896,7 +885,7 @@ print(x)
 """
 
 DEMO3 = """\
-x_b = 10
+x = 10
 if x > 5:
     print(x)
 else:
@@ -967,6 +956,6 @@ if __name__ == "__main__":
     print("Mini Python Compiler\n")
     #show_theory()
     compile_and_run(DEMO1, "Demo 1: Arithmetic & Print")
-    compile_and_run(DEMO2, "Demo 2: While Loop")
-    compile_and_run(DEMO3, "Demo 3: If/Else")
-    compile_and_run(ERROR_DEMO, "Error Demo: Syntax Errors")
+    #compile_and_run(DEMO2, "Demo 2: While Loop")
+    #compile_and_run(DEMO3, "Demo 3: If/Else")
+    #compile_and_run(ERROR_DEMO, "Error Demo: Syntax Errors")
