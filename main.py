@@ -462,9 +462,9 @@ def generate_program(prog: Program) -> List[Instr]:
         gen_stmt(stmt)
     return code
 
-# -----------------------------
-# 5. SIMPLE VM TO RUN ASSEMBLY (Result of compilation)
-# -----------------------------
+
+
+# 5. SIMPLE VM TO RUN ASSEMBLY 
 
 def run_program(code: List[Instr]) -> Dict[str, Any]:
     label_to_pc: Dict[str, int] = {}
@@ -569,9 +569,9 @@ def run_program(code: List[Instr]) -> Dict[str, Any]:
 
     return env
 
-# -----------------------------
-# 6. PRETTY-PRINT HELPERS (For slides: tokens, AST, code)
-# -----------------------------
+
+
+# 6. HELPERS (tokens, AST, code)
 
 def format_tokens(tokens: List[Token]) -> str:
     parts = []
@@ -641,7 +641,7 @@ def format_code(code: List[Instr]) -> str:
     return "\n".join(lines)
 
 
-def generate_x86(prog: Program) -> List[str]:
+def generate_x86(prog: Program) -> List[str]:       #nasm 32bit 
     lines: List[str] = []
     label_counter = 0
 
@@ -788,9 +788,9 @@ def generate_x86(prog: Program) -> List[str]:
 
     return lines
 
-# -----------------------------
-# 7. THEORY STRINGS (Regex, CFG, CNF, GNF, DFA) – for theory slides
-# -----------------------------
+
+
+# 7. THEORY STRINGS (Regex, CFG, CNF, GNF, DFA)
 
 REGEX_SPEC_TEXT = r"""
 Identifier (ID):   [A-Za-z_][A-Za-z0-9_]*
@@ -878,9 +878,9 @@ From q_num:
 q_err is a trap state.
 """
 
-# -----------------------------
+
+
 # 8. DEMO PROGRAMS (3 good + 1 error case)
-# -----------------------------
 
 DEMO1 = """\
 x = 1 + 2 * 3
@@ -965,7 +965,7 @@ def show_theory():
 
 if __name__ == "__main__":
     print("Mini Python Compiler\n")
-    show_theory()
+    #show_theory()
     compile_and_run(DEMO1, "Demo 1: Arithmetic & Print")
     compile_and_run(DEMO2, "Demo 2: While Loop")
     compile_and_run(DEMO3, "Demo 3: If/Else")
